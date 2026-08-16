@@ -16,9 +16,26 @@ enable Pages on that repo instead.
 
 - **Stability overview** — largest absolute change in mean Gₚ/Gₐ/Cₚ/Cₐ
   (Gini/coverage, content/creator) versus each block's own reference value,
-  per recommender, color-coded stable → material.
+  per recommender. Shaded by magnitude relative to the largest shift in the
+  table (a continuous gradient, not a fixed "material" cutoff — there's no
+  established convention for what counts as a material Gini/coverage shift,
+  so the dashboard deliberately doesn't assert one; that judgment belongs in
+  the paper text).
+- **Distribution shift (Jensen–Shannon)** — JS distance (base 2, bounded
+  0–1) between each tested value's recommendation-volume distribution and
+  the block's reference distribution. Unlike Gini/coverage, this compares
+  the whole shape, not one summary number — and because it's bounded, the
+  shading here (unlike the stability table above) uses a fixed 0–1 scale
+  and *is* comparable across blocks/topologies. Raw Wasserstein distance is
+  in the hover tooltip for context only (not normalized, not comparable
+  across blocks).
 - **Concentration & coverage** — entity-first grouped bars (Gₚ/Gₐ/Cₚ/Cₐ) by
   sensitivity value, mean ± sample SD.
+- **Recommendation-volume distribution (φ)** — log–log PMF of recommendation
+  volume conditional on r>0, same statistic as the paper's Figure 1.
+  Log-binned (~40 bins per recommender) from the full per-value PMF for
+  display; the un-binned data and the JSD/Wasserstein numbers above both
+  come from `sensitivity_export_metrics.py`.
 - **Recommender contrast (ΔG, ΔC)** — the same contrast the paper's results
   text already reports (P/UCF vs RC, FP/LR vs F), across sensitivity values.
 - **Popularity → future-exposure association (ρ)** — the paper's
@@ -26,7 +43,7 @@ enable Pages on that repo instead.
 - **Degree-resolved creator exposure** (s̄ₐ, ūₐ by kₐ) — same, faceted by
   recommender.
 
-Recommender colors and order come straight from `icwsm-recsys-visibility`'s
+Recommender colors and order come straight from
 `src/ysocial_recsys_reviews/config.py` (`FEED_COLORS` / `FEED_ORDER`), so
 they match the paper's matplotlib figures exactly. Notation (Gₚ/Gₐ, Cₚ/Cₐ,
 ΔG/ΔC, ρ, kₐ, τₗ/k/D/N) matches `paper/main_revised_30gg.tex`. The one
@@ -39,9 +56,9 @@ comparison from the paper's `ΔG`/`ΔC` (a recommender versus its reference
 ## Files
 
 ```text
-index.html            the page — logic + styling, ~46 KB, no external requests
+index.html             the page — logic + styling, ~60 KB, no external requests
 data/
-  dashboard_data.json  generated data bundle, fetched at runtime (~2 MB)
+  dashboard_data.json   generated data bundle, fetched at runtime (~3 MB)
 ```
 
 `index.html` fetches `data/dashboard_data.json` at load time. Refreshing the
@@ -85,19 +102,18 @@ python -m http.server 8000
 ## Enabling GitHub Pages (one-time)
 
 Settings → Pages → **Source: Deploy from a branch** → **Branch: `main`**,
-**Folder: `/ (root)`** → Save.
+**Folder: `/ (root)`** → Save. The site publishes at
+`https://virgiiim.github.io/ysocial-sensitivity-dashboard/`.
 
 ## Known limitations
 
-- Recommendation-volume distribution plots (content/creator PMFs,
-  Jensen–Shannon and Wasserstein distance vs. baseline) are **not** embedded
-  here — they are high-cardinality per-run tables that would push the data
-  bundle well past a reasonable size for a page fetch. They're already
-  computed by `sensitivity_export_metrics.py` into
-  `outputs/sensitivity_analysis/tables/sensitivity_metrics_summary.csv` in
-  the main repo; a future iteration could add a paginated or downsampled
-  view.
-- ICF is included in the recommender legend/table (for color/order parity
-  with the paper's 7 strategies) but currently has no OFAT data of its own —
-  cells show "–". If ICF sensitivity runs are ever added, no dashboard change
-  is needed; the data refresh picks them up automatically.
+- ICF has JSD/Wasserstein numbers (from `sensitivity_export_metrics.py`,
+  which covers all 7 recommenders) but shows "–" in the Gini/coverage,
+  contrast, reinforcement, and degree sections, which read from
+  `website_data/` exports that don't currently include an ICF OFAT run of
+  their own. If ICF sensitivity runs are ever added to that export, no
+  dashboard change is needed — the data refresh picks them up automatically.
+- The recommendation-volume plots are log-binned for display (~40 bins per
+  recommender); the full-resolution per-support PMF is in
+  `data_sensitivity/<block>/website_data/recommendation_volume_*` if finer
+  detail is ever needed.
