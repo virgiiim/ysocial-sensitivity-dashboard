@@ -1,0 +1,103 @@
+# Sensitivity dashboard
+
+Static, interactive OFAT (one-factor-at-a-time) sensitivity dashboard for the
+YSocial recommender-visibility paper, meant to be linked as a citable,
+always-current companion to the main-text sensitivity summary and the
+appendix tables.
+
+**This is a temporary standalone public repo.** The dashboard's real home is
+`icwsm-recsys-visibility` (private, source of truth for the analysis code and
+data), under `docs/sensitivity/`. It's mirrored here only because that repo's
+GitHub plan doesn't support Pages on a private repository. Once the paper is
+out of any blind-review period, fold this back in: copy `index.html` and
+`data/dashboard_data.json` from here into `docs/sensitivity/` there (same
+filenames, same relative layout — it's a straight copy, nothing to adapt) and
+enable Pages on that repo instead.
+
+- **Stability overview** — largest absolute change in mean Gₚ/Gₐ/Cₚ/Cₐ
+  (Gini/coverage, content/creator) versus each block's own reference value,
+  per recommender, color-coded stable → material.
+- **Concentration & coverage** — entity-first grouped bars (Gₚ/Gₐ/Cₚ/Cₐ) by
+  sensitivity value, mean ± sample SD.
+- **Recommender contrast (ΔG, ΔC)** — the same contrast the paper's results
+  text already reports (P/UCF vs RC, FP/LR vs F), across sensitivity values.
+- **Popularity → future-exposure association (ρ)** — the paper's
+  popularity-reinforcement Spearman correlation, faceted by recommender.
+- **Degree-resolved creator exposure** (s̄ₐ, ūₐ by kₐ) — same, faceted by
+  recommender.
+
+Recommender colors and order come straight from `icwsm-recsys-visibility`'s
+`src/ysocial_recsys_reviews/config.py` (`FEED_COLORS` / `FEED_ORDER`), so
+they match the paper's matplotlib figures exactly. Notation (Gₚ/Gₐ, Cₚ/Cₐ,
+ΔG/ΔC, ρ, kₐ, τₗ/k/D/N) matches `paper/main_revised_30gg.tex`. The one
+dashboard-specific symbol is `DG`/`DC` (Latin D, deliberately not `Δ`) in the
+stability table: it marks a shift versus an OFAT block's own reference
+*value* (e.g. τₗ=24h vs the τₗ=36h reference), which is a different
+comparison from the paper's `ΔG`/`ΔC` (a recommender versus its reference
+*strategy*, RC or F). Don't conflate the two in the paper text.
+
+## Files
+
+```text
+index.html            the page — logic + styling, ~46 KB, no external requests
+data/
+  dashboard_data.json  generated data bundle, fetched at runtime (~2 MB)
+```
+
+`index.html` fetches `data/dashboard_data.json` at load time. Refreshing the
+data is therefore a data-only change — the HTML never needs to be touched
+just because new runs landed.
+
+## Refreshing after new OFAT runs
+
+Regenerate in the main (private) repo, pointing the build script's output at
+this checkout, then commit and push here:
+
+```bash
+# from the icwsm-recsys-visibility checkout
+conda activate ysocial-analysis
+python scripts/ysocial_recsys_reviews/build_sensitivity_dashboard.py \
+  --output /path/to/ysocial-sensitivity-dashboard/data/dashboard_data.json
+
+# from this repo's checkout
+git add data/dashboard_data.json
+git commit -m "Refresh sensitivity dashboard data"
+git push
+```
+
+GitHub Pages redeploys automatically within a minute or two of the push. The
+build script reads `data_sensitivity/*/website_data/` (the same tables the
+`*_data_exploration.ipynb` notebooks already export in the main repo), so any
+block/topology still short of the planned 4 runs per cell is simply
+reflected as-is — the page's "Data status" badge and the caveat banner
+already surface that.
+
+## Viewing locally
+
+`index.html` uses `fetch()`, which browsers block against `file://`. Serve
+the folder over HTTP instead:
+
+```bash
+python -m http.server 8000
+# open http://127.0.0.1:8000/
+```
+
+## Enabling GitHub Pages (one-time)
+
+Settings → Pages → **Source: Deploy from a branch** → **Branch: `main`**,
+**Folder: `/ (root)`** → Save.
+
+## Known limitations
+
+- Recommendation-volume distribution plots (content/creator PMFs,
+  Jensen–Shannon and Wasserstein distance vs. baseline) are **not** embedded
+  here — they are high-cardinality per-run tables that would push the data
+  bundle well past a reasonable size for a page fetch. They're already
+  computed by `sensitivity_export_metrics.py` into
+  `outputs/sensitivity_analysis/tables/sensitivity_metrics_summary.csv` in
+  the main repo; a future iteration could add a paginated or downsampled
+  view.
+- ICF is included in the recommender legend/table (for color/order parity
+  with the paper's 7 strategies) but currently has no OFAT data of its own —
+  cells show "–". If ICF sensitivity runs are ever added, no dashboard change
+  is needed; the data refresh picks them up automatically.

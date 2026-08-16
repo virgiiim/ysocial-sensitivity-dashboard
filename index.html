@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OFAT Sensitivity Explorer</title>
+<style>
+  :root{
+    --surface-page:#f9f9f7; --surface-card:#fcfcfb; --surface-sunken:#f2f1ee;
+    --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#898781;
+    --grid-line:#e1e0d9; --axis-line:#c3c2b7; --border:rgba(11,11,11,0.10);
+    --accent:#2a78d6; --accent-wash:#eaf1fb;
+    --status-good:#0ca30c; --status-warning:#fab219; --status-serious:#ec835a; --status-critical:#d03b3b;
+    --status-good-wash:#e6f6e6; --status-warning-wash:#fff4dd; --status-serious-wash:#fde9e1; --status-critical-wash:#fbe4e4;
+    --status-warning-text:#8a6100; --status-serious-text:#a4431e;
+    --rec-RC:#000000; --rec-P:#e7298a; --rec-UCF:#00936D; --rec-ICF:#1b9e77; --rec-F:#d95f02; --rec-FP:#7570b3; --rec-LR:#549C29;
+    --seq-ref:#4a4a4a; --seq-low:#6da7ec; --seq-high:#184f95;
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --surface-page:#0d0d0d; --surface-card:#1a1a19; --surface-sunken:#141413;
+      --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+      --grid-line:#2c2c2a; --axis-line:#383835; --border:rgba(255,255,255,0.10);
+      --accent:#3987e5; --accent-wash:#122135;
+      --status-good:#0ca30c; --status-warning:#fab219; --status-serious:#ec835a; --status-critical:#d03b3b;
+      --status-good-wash:#0f2314; --status-warning-wash:#332a10; --status-serious-wash:#33201a; --status-critical-wash:#331616;
+      --status-warning-text:#ffd166; --status-serious-text:#ff9d6f;
+      --rec-RC:#e8e8e6; --rec-P:#e7298a; --rec-UCF:#00936D; --rec-ICF:#1b9e77; --rec-F:#d95f02; --rec-FP:#7570b3; --rec-LR:#549C29;
+      --seq-ref:#a8a8a3; --seq-low:#86b6ef; --seq-high:#3987e5;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --surface-page:#0d0d0d; --surface-card:#1a1a19; --surface-sunken:#141413;
+    --text-primary:#ffffff; --text-secondary:#c3c2b7; --text-muted:#898781;
+    --grid-line:#2c2c2a; --axis-line:#383835; --border:rgba(255,255,255,0.10);
+    --accent:#3987e5; --accent-wash:#122135;
+    --status-good:#0ca30c; --status-warning:#fab219; --status-serious:#ec835a; --status-critical:#d03b3b;
+    --status-good-wash:#0f2314; --status-warning-wash:#332a10; --status-serious-wash:#33201a; --status-critical-wash:#331616;
+    --status-warning-text:#ffd166; --status-serious-text:#ff9d6f;
+    --rec-RC:#e8e8e6; --rec-P:#e7298a; --rec-UCF:#00936D; --rec-ICF:#1b9e77; --rec-F:#d95f02; --rec-FP:#7570b3; --rec-LR:#549C29;
+    --seq-ref:#a8a8a3; --seq-low:#86b6ef; --seq-high:#3987e5;
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--surface-page); color:var(--text-primary);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:1180px; margin:0 auto; padding:28px 20px 80px;}
+
+  a{color:var(--accent);}
+
+  /* ---------- header ---------- */
+  header.top{display:flex; flex-direction:column; gap:14px; margin-bottom:24px;}
+  .eyebrow{font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); font-weight:600;}
+  h1{font-size:26px; line-height:1.25; margin:2px 0 0; font-weight:700; text-wrap:balance;}
+  .lede{font-size:14.5px; line-height:1.55; color:var(--text-secondary); max-width:72ch; margin:2px 0 0;}
+
+  .controls-row{display:flex; flex-wrap:wrap; gap:10px 18px; align-items:flex-end; margin-top:4px;}
+  .control-group{display:flex; flex-direction:column; gap:6px;}
+  .control-label{font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted); font-weight:600;}
+  .tabbar{display:flex; gap:4px; background:var(--surface-sunken); padding:3px; border-radius:9px; border:1px solid var(--border);}
+  .tabbar button{
+    appearance:none; border:0; background:transparent; color:var(--text-secondary);
+    font:inherit; font-size:13px; font-weight:600; padding:7px 12px; border-radius:6px; cursor:pointer;
+    transition:background .12s ease, color .12s ease;
+  }
+  .tabbar button:hover{color:var(--text-primary);}
+  .tabbar button.active{background:var(--surface-card); color:var(--accent); box-shadow:0 1px 2px var(--border);}
+  .tabbar button:focus-visible, button:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  .badge{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
+    padding:5px 10px; border-radius:99px; white-space:nowrap;
+  }
+  .badge.good{background:var(--status-good-wash); color:var(--status-good);}
+  .badge.warning{background:var(--status-warning-wash); color:var(--status-warning-text);}
+  .badge.serious{background:var(--status-serious-wash); color:var(--status-serious-text);}
+  .badge.critical{background:var(--status-critical-wash); color:var(--status-critical);}
+  .badge .dot{width:7px; height:7px; border-radius:50%; background:currentColor;}
+
+  .caveat-banner{
+    display:flex; gap:10px; align-items:flex-start; font-size:13px; line-height:1.5;
+    background:var(--surface-sunken); border:1px solid var(--border); border-radius:10px;
+    padding:10px 14px; color:var(--text-secondary);
+  }
+  .caveat-banner strong{color:var(--text-primary);}
+
+  .fixed-params{font-size:12.5px; color:var(--text-muted);}
+  .fixed-params code{font-family:inherit; background:var(--surface-sunken); padding:1px 6px; border-radius:5px; color:var(--text-secondary); font-variant-numeric:tabular-nums;}
+
+  /* ---------- cards ---------- */
+  .card{
+    background:var(--surface-card); border:1px solid var(--border); border-radius:14px;
+    padding:20px 22px 22px; margin-bottom:20px;
+  }
+  .card-head{display:flex; flex-wrap:wrap; gap:10px 20px; align-items:flex-start; justify-content:space-between; margin-bottom:14px;}
+  .card-title{font-size:16px; font-weight:700; margin:0;}
+  .card-sub{font-size:12.5px; color:var(--text-muted); margin:3px 0 0; max-width:62ch;}
+  .card-controls{display:flex; gap:8px; flex-wrap:wrap;}
+
+  /* ---------- legend ---------- */
+  .legend{display:flex; flex-wrap:wrap; gap:6px 16px; font-size:12.5px; color:var(--text-secondary); margin:0 0 14px;}
+  .legend-item{display:inline-flex; align-items:center; gap:6px;}
+  .swatch{width:11px; height:11px; border-radius:3px; flex:none; display:inline-block;}
+  .swatch.line{border-radius:99px; height:3px; width:16px;}
+
+  /* ---------- stability table ---------- */
+  .table-scroll{overflow-x:auto;}
+  table.stability{border-collapse:collapse; width:100%; font-size:13px; min-width:640px;}
+  table.stability th, table.stability td{padding:8px 10px; text-align:center; border-bottom:1px solid var(--grid-line);}
+  table.stability th{font-size:11px; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-muted); font-weight:600; text-align:center;}
+  table.stability td.rec-cell{text-align:left; font-weight:700; color:var(--text-primary);}
+  table.stability td.metric-cell{font-variant-numeric:tabular-nums; cursor:default; border-radius:6px;}
+  table.stability td.metric-cell .val{font-weight:700;}
+  table.stability td.metric-cell .arrow{font-size:10px; opacity:0.75; margin-left:2px;}
+  table.stability tbody tr:hover{background:var(--surface-sunken);}
+  .stability-key{display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:14px; font-size:12px; color:var(--text-muted);}
+  .stability-key span{display:inline-flex; align-items:center; gap:6px;}
+  .key-chip{width:10px; height:10px; border-radius:3px;}
+
+  /* ---------- charts ---------- */
+  .bar-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(360px,1fr)); gap:18px;}
+  .chart-panel{background:var(--surface-sunken); border:1px solid var(--border); border-radius:10px; padding:12px 14px 8px;}
+  .chart-panel h4{margin:0 0 6px; font-size:12.5px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.03em;}
+  svg.chart{width:100%; height:auto; display:block; overflow:visible;}
+  svg.chart .grid-line{stroke:var(--grid-line); stroke-width:1;}
+  svg.chart .axis-line{stroke:var(--axis-line); stroke-width:1;}
+  svg.chart .zero-line{stroke:var(--axis-line); stroke-width:1; stroke-dasharray:2 3;}
+  svg.chart text{fill:var(--text-muted); font-size:9.5px; font-family:inherit;}
+  svg.chart text.axis-title{fill:var(--text-secondary); font-size:10px; font-weight:600;}
+  .bar-rect{cursor:pointer; transition:opacity .1s ease;}
+  .bar-rect:hover, .bar-rect:focus-visible{opacity:0.75; outline:none;}
+  .err-line{stroke:var(--text-primary); opacity:0.35; stroke-width:1.3;}
+  .baseline-tag{fill:var(--text-muted); font-size:8.5px; font-style:italic;}
+  .line-path{fill:none; stroke-width:2; }
+  .line-dot{fill:var(--surface-sunken); stroke-width:1.6;}
+  .hover-dot{fill:var(--text-primary);}
+  .crosshair{stroke:var(--text-muted); stroke-width:1; stroke-dasharray:2 2; opacity:0;}
+
+  .multi-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:14px;}
+
+  /* ---------- tooltip ---------- */
+  #tooltip{
+    position:fixed; z-index:50; pointer-events:none; background:var(--text-primary); color:var(--surface-card);
+    font-size:12px; line-height:1.45; padding:8px 10px; border-radius:8px; max-width:240px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.22); opacity:0; transform:translate(-50%,-100%); transition:opacity .08s ease;
+  }
+  #tooltip .tt-title{font-weight:700; margin-bottom:3px;}
+  #tooltip .tt-row{display:flex; justify-content:space-between; gap:12px; font-variant-numeric:tabular-nums;}
+  #tooltip .tt-row .k{opacity:0.75; display:flex; align-items:center; gap:5px;}
+
+  footer.notes{margin-top:30px; padding-top:18px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted); line-height:1.6;}
+  footer.notes code{background:var(--surface-sunken); padding:1px 5px; border-radius:4px;}
+
+  @media (max-width:640px){
+    h1{font-size:22px;}
+    .card{padding:16px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div>
+      <div class="eyebrow">YSocial recommender visibility &mdash; OFAT sensitivity analysis</div>
+      <h1>Sensitivity Explorer</h1>
+      <p class="lede">Every metric below is computed independently per run, then averaged with equal weight across runs (10 for the BA canonical baseline, up to 4 for each OFAT cell). Deltas are the sensitivity-cell mean minus the block's own baseline-value mean, not a re-derived statistic.</p>
+    </div>
+    <div class="controls-row">
+      <div class="control-group">
+        <span class="control-label">Sensitivity block</span>
+        <div class="tabbar" id="block-tabs" role="tablist" aria-label="Sensitivity block"></div>
+      </div>
+      <div class="control-group">
+        <span class="control-label">Network topology</span>
+        <div class="tabbar" id="topo-tabs" role="tablist" aria-label="Network topology"></div>
+      </div>
+      <div class="control-group" id="completeness-badge-wrap" style="display:none;">
+        <span class="control-label">Data status</span>
+        <span class="badge" id="completeness-badge"></span>
+      </div>
+    </div>
+    <div class="caveat-banner" id="caveat-banner" style="display:none;"></div>
+    <div class="fixed-params" id="fixed-params"></div>
+  </header>
+
+  <main id="main"></main>
+
+  <footer class="notes">
+    <p><strong>Reading this dashboard.</strong> &ldquo;Stability&rdquo; compares each OFAT value against the block's own reference cell (not the 10-run canonical baseline, except where BA and the reference value coincide). Thresholds: <span class="badge good" style="padding:2px 8px;">&lt;0.02 stable</span> <span class="badge warning" style="padding:2px 8px;">0.02&ndash;0.05</span> <span class="badge serious" style="padding:2px 8px;">0.05&ndash;0.10</span> <span class="badge critical" style="padding:2px 8px;">&ge;0.10 material</span> absolute change in Gini or coverage. These cut points are a starting proposal for the paper's "materially altered vs. qualitatively stable" language (R2.4) &mdash; adjust in <code>prep_dashboard_data.py</code> if the authors prefer different bounds.</p>
+    <p>Recommendation-volume distribution plots (content/creator PMFs, Jensen&ndash;Shannon &amp; Wasserstein distance vs. baseline) are exported separately by <code>sensitivity_export_metrics.py</code> and are not embedded here yet &mdash; they are high-cardinality per-run tables that would push this page well past a reasonable size. Source tables: <code>data_sensitivity/&lt;block&gt;/website_data/</code>, generated by <code>ysocial_recsys_reviews.sensitivity</code>.</p>
+  </footer>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+(function(){
+  "use strict";
+  let DATA;
+  // Works two ways from one template: if the page ships the data inline (the
+  // self-contained artifact build), use it; otherwise (the GitHub Pages
+  // build, which keeps data/dashboard_data.json separate so a data refresh
+  // never requires touching this HTML) fetch it.
+  async function loadData(){
+    const embedded = document.getElementById("dashboard-data");
+    const raw = embedded ? embedded.textContent.trim() : "";
+    if (raw && raw !== "__DASHBOARD_DATA_JSON__") return JSON.parse(raw);
+    const res = await fetch("data/dashboard_data.json");
+    if (!res.ok) throw new Error(`Failed to load dashboard data: HTTP ${res.status}`);
+    return await res.json();
+  }
+  let BLOCKS; // populated once DATA loads, in init()
+  const TOPOS = ["BA","ER","PC"];
+  // Order and hex values match config.py FEED_ORDER / FEED_COLORS exactly, so
+  // recommender colors here are identical to the paper's matplotlib figures.
+  const REC_ORDER = ["RC","P","UCF","ICF","F","FP","LR"];
+  const REC_VAR = { RC:"--rec-RC", P:"--rec-P", UCF:"--rec-UCF", ICF:"--rec-ICF", F:"--rec-F", FP:"--rec-FP", LR:"--rec-LR" };
+  const cssVar = (name) => `var(${name})`;
+  const recColor = (rec) => cssVar(REC_VAR[rec] || "--text-muted");
+
+  // Same symbols as the paper: G/C for Gini/coverage, subscript p (post =
+  // content) / a (author = creator). Δ is reserved for the paper's own
+  // recommender-vs-reference contrast; δ (lowercase) marks this dashboard's
+  // own OFAT-value-vs-block-reference shift, which is a different axis.
+  const METRIC_SYMBOL = { gini: "G", coverage: "C" };
+  const ENTITY_SUB = { content: "ₚ", creator: "ₐ" };
+  function metricSymbol(metric, ent){ return (METRIC_SYMBOL[metric]||metric) + (ENTITY_SUB[ent]||""); }
+
+  const state = { block: "visibility", topo: "BA" }; // block finalized in init() once BLOCKS is known
+
+  const NS = "http://www.w3.org/2000/svg";
+  function el(tag, attrs, parent){
+    const e = document.createElementNS(NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function h(tag, attrs, children){
+    const e = document.createElement(tag);
+    if (attrs) for (const k in attrs){
+      if (k === "class") e.className = attrs[k];
+      else if (k === "html") e.innerHTML = attrs[k];
+      else if (k === "text") e.textContent = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    }
+    (children||[]).forEach(c => e.appendChild(c));
+    return e;
+  }
+
+  function fmt(v, digits){
+    if (v === null || v === undefined || Number.isNaN(v)) return "–";
+    digits = digits === undefined ? 3 : digits;
+    if (Math.abs(v) > 0 && Math.abs(v) < Math.pow(10, -digits+1)) {
+      return v.toExponential(1);
+    }
+    return v.toFixed(digits);
+  }
+  function fmtSigned(v, digits){
+    const s = fmt(Math.abs(v), digits);
+    if (v === null || v === undefined || Number.isNaN(v)) return "–";
+    return (v > 0 ? "+" : v < 0 ? "−" : "±") + s;
+  }
+
+  const statusLabel = { good:"stable", warning:"minor drift", serious:"notable shift", critical:"material change" };
+
+  // ---------------- tooltip ----------------
+  const tooltipEl = document.getElementById("tooltip");
+  function showTooltip(x, y, title, rows){
+    tooltipEl.innerHTML = "";
+    const t = h("div", {class:"tt-title", text:title});
+    tooltipEl.appendChild(t);
+    rows.forEach(r => {
+      const row = h("div", {class:"tt-row"});
+      const k = h("span", {class:"k"});
+      if (r.color) k.appendChild(h("span", {style:`display:inline-block;width:8px;height:8px;border-radius:2px;background:${r.color};`}));
+      k.appendChild(document.createTextNode(r.k));
+      const v = h("span", {text:r.v});
+      row.appendChild(k); row.appendChild(v);
+      tooltipEl.appendChild(row);
+    });
+    tooltipEl.style.left = x + "px";
+    tooltipEl.style.top = (y - 10) + "px";
+    tooltipEl.style.opacity = "1";
+  }
+  function hideTooltip(){ tooltipEl.style.opacity = "0"; }
+
+  // ---------------- scales ----------------
+  function linScale(domain, range){
+    const [d0,d1] = domain, [r0,r1] = range;
+    const denom = (d1 - d0) || 1;
+    return (v) => r0 + (v - d0) / denom * (r1 - r0);
+  }
+  function niceMax(v, step){
+    if (!(v > 0)) return step;
+    return Math.ceil(v / step) * step;
+  }
+
+  // ---------------- rounded bar path ----------------
+  // Rounds the data end (4px rounded, anchored to the baseline at the other end).
+  // roundTop=true rounds the smaller-y edge (use for bars rising from a bottom
+  // baseline, or a diverging bar whose value is >= 0); roundTop=false rounds the
+  // larger-y edge (a diverging bar whose value is < 0, extending below zero).
+  function roundedBarPath(x, yTop, yBottom, w, r, roundTop){
+    if (roundTop === undefined) roundTop = true;
+    r = Math.min(r, w/2, Math.abs(yBottom-yTop));
+    if (r < 0.5) return `M${x},${yTop} L${x+w},${yTop} L${x+w},${yBottom} L${x},${yBottom} Z`;
+    if (roundTop){
+      return `M${x},${yTop+r} Q${x},${yTop} ${x+r},${yTop} L${x+w-r},${yTop} Q${x+w},${yTop} ${x+w},${yTop+r} L${x+w},${yBottom} L${x},${yBottom} Z`;
+    }
+    return `M${x},${yTop} L${x+w},${yTop} L${x+w},${yBottom-r} Q${x+w},${yBottom} ${x+w-r},${yBottom} L${x+r},${yBottom} Q${x},${yBottom} ${x},${yBottom-r} Z`;
+  }
+
+  // ================================================================
+  // Section: Gini / Coverage grouped bar
+  // ================================================================
+  function buildGroupedBarPanel(rows, entity, metricLabel, unitDigits){
+    const W = 520, H = 260, M = {top:14, right:12, bottom:34, left:40};
+    const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+    const filtered = rows.filter(r => r.ent === entity);
+    const values = [...new Set(filtered.map(r => r.v))].sort((a,b)=>a-b);
+    const recsPresent = REC_ORDER.filter(rc => filtered.some(r => r.rec === rc));
+    let maxVal = 0;
+    filtered.forEach(r => { if (r.mean !== null) maxVal = Math.max(maxVal, r.mean + (r.sd||0)); });
+    const yMax = niceMax(maxVal * 1.12, maxVal <= 0.2 ? 0.02 : maxVal <= 1 ? 0.1 : Math.pow(10, Math.floor(Math.log10(maxVal))));
+    const y = linScale([0, yMax], [plotH, 0]);
+
+    const svg = el("svg", {class:"chart", viewBox:`0 0 ${W} ${H}`, role:"img", "aria-label":`${metricLabel} for ${entity}`});
+    const plot = el("g", {transform:`translate(${M.left},${M.top})`}, svg);
+
+    // gridlines + y ticks
+    const ticks = 4;
+    for (let i=0;i<=ticks;i++){
+      const val = yMax * i / ticks;
+      const yy = y(val);
+      el("line", {class:"grid-line", x1:0, x2:plotW, y1:yy, y2:yy}, plot);
+      el("text", {x:-6, y:yy+3, "text-anchor":"end"}, plot).textContent = fmt(val, unitDigits);
+    }
+    el("line", {class:"axis-line", x1:0, x2:0, y1:0, y2:plotH}, plot);
+    el("line", {class:"axis-line", x1:0, x2:plotW, y1:plotH, y2:plotH}, plot);
+
+    const groupW = plotW / Math.max(values.length,1);
+    const barPad = groupW * 0.12;
+    const clusterW = groupW - barPad*2;
+    const barW = clusterW / Math.max(recsPresent.length,1);
+
+    values.forEach((v, gi) => {
+      const gx = gi * groupW + barPad;
+      const anyRow = filtered.find(r => r.v === v);
+      const isBaseline = anyRow && anyRow.src === "baseline";
+      if (isBaseline){
+        el("rect", {x:gi*groupW, y:0, width:groupW, height:plotH, fill:"var(--accent-wash)", opacity:0.5}, plot);
+      }
+      recsPresent.forEach((rc, ri) => {
+        const row = filtered.find(r => r.rec === rc && r.v === v);
+        const bx = gx + ri*barW;
+        const mean = row ? row.mean : null;
+        if (mean === null || mean === undefined) return;
+        const yTop = y(mean);
+        const path = el("path", {
+          d: roundedBarPath(bx+1, yTop, plotH, Math.max(barW-2,1), 2.5),
+          fill: recColor(rc), class:"bar-rect", tabindex:"0"
+        }, plot);
+        path.addEventListener("mouseenter", (ev) => {
+          const rect = svg.getBoundingClientRect();
+          showTooltip(ev.clientX, rect.top, `${rc} · ${row.vl}${isBaseline ? " (baseline)" : ""}`, [
+            {k:metricLabel, v:fmt(mean, unitDigits+1), color:recColor(rc)},
+            row.sd !== null ? {k:"sd", v:fmt(row.sd, unitDigits+1)} : null,
+            {k:"runs", v:String(row.n)}
+          ].filter(Boolean));
+        });
+        path.addEventListener("mousemove", (ev) => { tooltipEl.style.left = ev.clientX+"px"; });
+        path.addEventListener("mouseleave", hideTooltip);
+        if (row.sd){
+          const yLo = y(Math.max(mean-row.sd,0)), yHi = y(mean+row.sd);
+          el("line", {class:"err-line", x1:bx+barW/2, x2:bx+barW/2, y1:yHi, y2:yLo}, plot);
+        }
+      });
+      el("text", {x:gi*groupW+groupW/2, y:plotH+14, "text-anchor":"middle"}, plot).textContent = (anyRow?anyRow.vl:v);
+      if (isBaseline) el("text", {class:"baseline-tag", x:gi*groupW+groupW/2, y:plotH+25, "text-anchor":"middle"}, plot).textContent = "baseline";
+    });
+    return svg;
+  }
+
+  function renderGiniCoverage(container, block, topo){
+    const topoData = DATA.blocks[block].topologies[topo];
+    const card = h("section", {class:"card"});
+    const head = h("div", {class:"card-head"}, [
+      h("div", {}, [
+        h("h3", {class:"card-title", text:"Concentration & coverage"}),
+        h("p", {class:"card-sub", text:"Entity-first grouped bars: mean across runs, error bars = sample SD. Shaded column marks the block's reference value."})
+      ])
+    ]);
+    const tabs = h("div", {class:"tabbar", role:"tablist"});
+    const metrics = [
+      {key:"absolute_gini", label:"Gini", digits:3},
+      {key:"absolute_coverage", label:"Coverage", digits:2}
+    ].filter(m => topoData[m.key]);
+    const body = h("div", {});
+    function renderMetric(mkey){
+      body.innerHTML = "";
+      const m = metrics.find(x=>x.key===mkey);
+      const legend = h("div", {class:"legend"});
+      const recsPresent = REC_ORDER.filter(rc => topoData[mkey].some(r=>r.rec===rc));
+      recsPresent.forEach(rc => legend.appendChild(h("span", {class:"legend-item"}, [
+        h("span", {class:"swatch", style:`background:${recColor(rc)}`}), h("span", {text:rc})
+      ])));
+      body.appendChild(legend);
+      const grid = h("div", {class:"bar-grid"});
+      const shortMetric = mkey === "absolute_gini" ? "gini" : "coverage";
+      ["content","creator"].forEach(ent => {
+        const panel = h("div", {class:"chart-panel"});
+        panel.appendChild(h("h4", {text: `${ent === "content" ? "Content" : "Creator"} (${metricSymbol(shortMetric, ent)})`}));
+        panel.appendChild(buildGroupedBarPanel(topoData[mkey], ent, m.label, m.digits));
+        grid.appendChild(panel);
+      });
+      body.appendChild(grid);
+    }
+    metrics.forEach((m,i) => {
+      const btn = h("button", {text:m.label, type:"button"});
+      if (i===0) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        tabs.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        renderMetric(m.key);
+      });
+      tabs.appendChild(btn);
+    });
+    head.appendChild(h("div", {class:"card-controls"}, [tabs]));
+    card.appendChild(head);
+    card.appendChild(body);
+    if (metrics.length) renderMetric(metrics[0].key);
+    container.appendChild(card);
+  }
+
+  // ================================================================
+  // Section: recommender contrast (delta vs strategy reference)
+  // ================================================================
+  function buildContrastPanel(rows, entity){
+    const W = 520, H = 240, M = {top:14, right:12, bottom:34, left:44};
+    const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+    const filtered = rows.filter(r => r.ent === entity && r.delta !== null);
+    const values = [...new Set(filtered.map(r => r.v))].sort((a,b)=>a-b);
+    const recsPresent = REC_ORDER.filter(rc => filtered.some(r => r.rec === rc));
+    let maxAbs = 0.05;
+    filtered.forEach(r => { maxAbs = Math.max(maxAbs, Math.abs(r.delta)); });
+    const yMax = niceMax(maxAbs*1.15, maxAbs <= 0.2 ? 0.02 : 0.1);
+    const y = linScale([-yMax, yMax], [plotH, 0]);
+    const svg = el("svg", {class:"chart", viewBox:`0 0 ${W} ${H}`, role:"img", "aria-label":`Recommender contrast for ${entity}`});
+    const plot = el("g", {transform:`translate(${M.left},${M.top})`}, svg);
+    [-yMax, -yMax/2, 0, yMax/2, yMax].forEach(val => {
+      const yy = y(val);
+      el("line", {class: val===0 ? "axis-line" : "grid-line", x1:0, x2:plotW, y1:yy, y2:yy}, plot);
+      el("text", {x:-6, y:yy+3, "text-anchor":"end"}, plot).textContent = fmtSigned(val, 2);
+    });
+    el("line", {class:"axis-line", x1:0, x2:0, y1:0, y2:plotH}, plot);
+    const groupW = plotW / Math.max(values.length,1);
+    const barPad = groupW*0.12;
+    const clusterW = groupW - barPad*2;
+    const barW = clusterW / Math.max(recsPresent.length,1);
+    values.forEach((v, gi) => {
+      const gx = gi*groupW + barPad;
+      const anyRow = filtered.find(r=>r.v===v);
+      const isBaseline = anyRow && anyRow.src === "baseline";
+      if (isBaseline) el("rect", {x:gi*groupW, y:0, width:groupW, height:plotH, fill:"var(--accent-wash)", opacity:0.5}, plot);
+      recsPresent.forEach((rc, ri) => {
+        const row = filtered.find(r=>r.rec===rc && r.v===v);
+        if (!row) return;
+        const bx = gx + ri*barW;
+        const y0 = y(0), y1 = y(row.delta);
+        const top = Math.min(y0,y1), bottom = Math.max(y0,y1);
+        const path = el("path", {
+          d: roundedBarPath(bx+1, top, bottom, Math.max(barW-2,1), 2, row.delta >= 0),
+          fill: recColor(rc), class:"bar-rect", tabindex:"0"
+        }, plot);
+        path.addEventListener("mouseenter", (ev) => {
+          const rect = svg.getBoundingClientRect();
+          showTooltip(ev.clientX, rect.top, `${rc} vs ${row.ref} · ${row.vl}`, [
+            {k:"Δ (feed − ref)", v: fmtSigned(row.delta,3), color:recColor(rc)},
+            {k:rc, v: fmt(row.feed,3)},
+            {k:row.ref, v: fmt(row.refm,3)}
+          ]);
+        });
+        path.addEventListener("mousemove", (ev)=>{ tooltipEl.style.left = ev.clientX+"px"; });
+        path.addEventListener("mouseleave", hideTooltip);
+      });
+      el("text", {x:gi*groupW+groupW/2, y:plotH+14, "text-anchor":"middle"}, plot).textContent = anyRow?anyRow.vl:v;
+    });
+    return svg;
+  }
+
+  function renderContrast(container, block, topo){
+    const topoData = DATA.blocks[block].topologies[topo];
+    const has = topoData.gini_recommender_contrast || topoData.coverage_recommender_contrast;
+    if (!has) return;
+    const card = h("section", {class:"card"});
+    const head = h("div", {class:"card-head"}, [
+      h("div", {}, [
+        h("h3", {class:"card-title", html:"Recommender contrast vs. its reference strategy (&Delta;G, &Delta;C)"}),
+        h("p", {class:"card-sub", html:"Same &Delta; as the paper's results text: P/UCF minus RC, FP/LR minus F. Bars above zero = more concentrated / more covered than the reference; below zero = less."})
+      ])
+    ]);
+    const tabs = h("div", {class:"tabbar"});
+    const metrics = [
+      {key:"gini_recommender_contrast", label:"ΔG", shortMetric:"gini"},
+      {key:"coverage_recommender_contrast", label:"ΔC", shortMetric:"coverage"}
+    ].filter(m => topoData[m.key]);
+    const body = h("div", {});
+    function renderMetric(mkey){
+      body.innerHTML = "";
+      const shortMetric = metrics.find(m=>m.key===mkey).shortMetric;
+      const legend = h("div", {class:"legend"});
+      const recsPresent = REC_ORDER.filter(rc => topoData[mkey].some(r=>r.rec===rc));
+      recsPresent.forEach(rc => legend.appendChild(h("span", {class:"legend-item"}, [
+        h("span", {class:"swatch", style:`background:${recColor(rc)}`}), h("span", {text:rc})
+      ])));
+      body.appendChild(legend);
+      const grid = h("div", {class:"bar-grid"});
+      ["content","creator"].forEach(ent => {
+        const panel = h("div", {class:"chart-panel"});
+        panel.appendChild(h("h4", {text: `${ent === "content" ? "Content" : "Creator"} (Δ${metricSymbol(shortMetric, ent)})`}));
+        panel.appendChild(buildContrastPanel(topoData[mkey], ent));
+        grid.appendChild(panel);
+      });
+      body.appendChild(grid);
+    }
+    metrics.forEach((m,i)=>{
+      const btn = h("button", {text:m.label, type:"button"});
+      if (i===0) btn.classList.add("active");
+      btn.addEventListener("click", ()=>{
+        tabs.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        renderMetric(m.key);
+      });
+      tabs.appendChild(btn);
+    });
+    head.appendChild(h("div", {class:"card-controls"}, [tabs]));
+    card.appendChild(head);
+    card.appendChild(body);
+    if (metrics.length) renderMetric(metrics[0].key);
+    container.appendChild(card);
+  }
+
+  // ================================================================
+  // Section: line small multiples (reinforcement, degree)
+  // ================================================================
+  // The reference/baseline value always renders in the same neutral gray the
+  // notebooks already use for it (series_colors={baseline: '#4a4a4a'}); the
+  // remaining values split across two ordinal blue steps (low/high).
+  function seqColorFor(value, values, baselineVals){
+    if (baselineVals && baselineVals.has(value)) return cssVar("--seq-ref");
+    const nonBaseline = values.filter(v => !(baselineVals && baselineVals.has(v)));
+    const idx = nonBaseline.indexOf(value);
+    if (nonBaseline.length <= 1) return cssVar("--seq-low");
+    return idx === 0 ? cssVar("--seq-low") : cssVar("--seq-high");
+  }
+  function isBaselineValue(value, baselineVals){ return !!(baselineVals && baselineVals.has(value)); }
+
+  function buildLinePanel(rows, opts){
+    const W = 300, H = 190, M = {top:10, right:10, bottom:26, left:34};
+    const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+    const values = [...new Set(rows.map(r=>r.v))].sort((a,b)=>a-b);
+    const xs = [...new Set(rows.map(r=>r.x))].sort((a,b)=>a-b);
+    if (!xs.length) return el("svg", {class:"chart", viewBox:`0 0 ${W} ${H}`});
+    const xDomain = [xs[0], xs[xs.length-1]];
+    let yMin = opts.yMin, yMax = opts.yMax;
+    if (yMin === undefined || yMax === undefined){
+      let lo = Infinity, hi = -Infinity;
+      rows.forEach(r => { lo = Math.min(lo, r.mean); hi = Math.max(hi, r.mean); });
+      if (!isFinite(lo)) { lo = 0; hi = 1; }
+      const pad = (hi-lo)*0.12 || 0.05;
+      yMin = opts.zeroFloor ? Math.min(0, lo-pad) : lo-pad;
+      yMax = hi+pad;
+    }
+    const x = linScale(xDomain, [0, plotW]);
+    const y = linScale([yMin, yMax], [plotH, 0]);
+    const svg = el("svg", {class:"chart", viewBox:`0 0 ${W} ${H}`, role:"img"});
+    const plot = el("g", {transform:`translate(${M.left},${M.top})`}, svg);
+    const yTicks = 3;
+    for (let i=0;i<=yTicks;i++){
+      const val = yMin + (yMax-yMin)*i/yTicks;
+      const yy = y(val);
+      el("line", {class:"grid-line", x1:0, x2:plotW, y1:yy, y2:yy}, plot);
+      el("text", {x:-5, y:yy+3, "text-anchor":"end"}, plot).textContent = fmt(val, opts.digits||2);
+    }
+    if (opts.zeroLine && yMin < 0 && yMax > 0){
+      el("line", {class:"zero-line", x1:0, x2:plotW, y1:y(0), y2:y(0)}, plot);
+    }
+    el("line", {class:"axis-line", x1:0, x2:0, y1:0, y2:plotH}, plot);
+    el("line", {class:"axis-line", x1:0, x2:plotW, y1:plotH, y2:plotH}, plot);
+    el("text", {x:0, y:plotH+16, "text-anchor":"start"}, plot).textContent = opts.xFmt ? opts.xFmt(xDomain[0]) : xDomain[0];
+    el("text", {x:plotW, y:plotH+16, "text-anchor":"end"}, plot).textContent = opts.xFmt ? opts.xFmt(xDomain[1]) : xDomain[1];
+
+    const baselineVals = opts.baselineVals;
+    const seriesData = values.map((v) => {
+      const pts = rows.filter(r=>r.v===v).sort((a,b)=>a.x-b.x);
+      return {v, color: seqColorFor(v, values, baselineVals), isRef: isBaselineValue(v, baselineVals), pts};
+    });
+    // Draw the reference/baseline line first so the varied values sit on top.
+    seriesData.slice().sort((a,b) => (a.isRef===b.isRef) ? 0 : (a.isRef ? -1 : 1)).forEach(s => {
+      if (s.pts.length < 2) return;
+      const d = s.pts.map((p,i) => `${i===0?"M":"L"}${x(p.x)},${y(p.mean)}`).join(" ");
+      el("path", {class:"line-path", d, stroke:s.color, "stroke-dasharray": s.isRef ? "4 2.5" : "none"}, plot);
+    });
+
+    // hover crosshair
+    const hoverGroup = el("g", {}, plot);
+    const crosshair = el("line", {class:"crosshair", y1:0, y2:plotH}, hoverGroup);
+    const dots = seriesData.map(s => el("circle", {class:"hover-dot", r:2.6, fill:s.color, opacity:0}, hoverGroup));
+    const capture = el("rect", {x:0, y:0, width:plotW, height:plotH, fill:"transparent"}, plot);
+    capture.addEventListener("mousemove", (ev) => {
+      const rect = svg.getBoundingClientRect();
+      const scaleX = rect.width / W;
+      const mx = (ev.clientX - rect.left)/scaleX - M.left;
+      let nearest = xs[0], best = Infinity;
+      xs.forEach(xv => { const d = Math.abs(x(xv)-mx); if (d<best){best=d; nearest=xv;} });
+      crosshair.setAttribute("x1", x(nearest)); crosshair.setAttribute("x2", x(nearest));
+      crosshair.style.opacity = 1;
+      const rows_tt = [];
+      seriesData.forEach((s, i) => {
+        const pt = s.pts.find(p=>p.x===nearest);
+        if (pt){
+          dots[i].setAttribute("cx", x(pt.x)); dots[i].setAttribute("cy", y(pt.mean)); dots[i].style.opacity = 1;
+          rows_tt.push({k: pt.vl, v: fmt(pt.mean, opts.digits||2), color: s.color});
+        } else { dots[i].style.opacity = 0; }
+      });
+      showTooltip(ev.clientX, rect.top, opts.xFmt ? opts.xFmt(nearest) : `x = ${nearest}`, rows_tt);
+    });
+    capture.addEventListener("mouseleave", () => { crosshair.style.opacity = 0; dots.forEach(d=>d.style.opacity=0); hideTooltip(); });
+    return svg;
+  }
+
+  function renderReinforcement(container, block, topo){
+    const topoData = DATA.blocks[block].topologies[topo];
+    if (!topoData.popularity_reinforcement) return;
+    const rows = topoData.popularity_reinforcement;
+    const values = [...new Set(rows.map(r=>r.v))].sort((a,b)=>a-b);
+    const vLabel = {};
+    rows.forEach(r => { vLabel[r.v] = r.vl; });
+    const baselineVals = new Set(DATA.blocks[block].baseline_values);
+    const card = h("section", {class:"card"});
+    card.appendChild(h("div", {class:"card-head"}, [
+      h("div", {}, [
+        h("h3", {class:"card-title", html:"Popularity &rarr; future-exposure association (&rho;)"}),
+        h("p", {class:"card-sub", html:"Spearman correlation &rho;<sub>t<sub>p</sub></sub> between a post's early popularity and its later recommendation exposure, by content age <em>t<sub>p</sub></em> in hours &mdash; same statistic as the paper's popularity-reinforcement figure. One panel per recommender; line shade = sensitivity value."})
+      ])
+    ]));
+    const legend = h("div", {class:"legend"});
+    values.forEach((v) => legend.appendChild(h("span", {class:"legend-item"}, [
+      h("span", {class:"swatch line", style:`background:${seqColorFor(v, values, baselineVals)}`}),
+      h("span", {text: vLabel[v] + (baselineVals.has(v) ? " (reference)" : "")})
+    ])));
+    card.appendChild(legend);
+    const grid = h("div", {class:"multi-grid"});
+    REC_ORDER.filter(rc => rows.some(r=>r.rec===rc)).forEach(rc => {
+      const panel = h("div", {class:"chart-panel"});
+      panel.appendChild(h("h4", {text:rc}));
+      panel.appendChild(buildLinePanel(rows.filter(r=>r.rec===rc), {
+        digits:2, zeroLine:true, zeroFloor:false, baselineVals,
+        xFmt:(v)=>`t+${v}h`
+      }));
+      grid.appendChild(panel);
+    });
+    card.appendChild(grid);
+    container.appendChild(card);
+  }
+
+  function renderDegree(container, block, topo){
+    const topoData = DATA.blocks[block].topologies[topo];
+    const metrics = [
+      {key:"creator_recommendation_share_by_degree", label:"Recommendation share (s̄ₐ)"},
+      {key:"creator_unique_reach_by_degree", label:"Unique reach (ūₐ)"}
+    ].filter(m => topoData[m.key]);
+    if (!metrics.length) return;
+    const card = h("section", {class:"card"});
+    const head = h("div", {class:"card-head"}, [
+      h("div", {}, [
+        h("h3", {class:"card-title", text:"Degree-resolved creator exposure"}),
+        h("p", {class:"card-sub", html:"Mean metric within each creator-degree bin (k<sub>a</sub>) of the paired follow graph. One panel per recommender; line shade = sensitivity value."})
+      ])
+    ]);
+    const tabs = h("div", {class:"tabbar"});
+    const body = h("div", {});
+    function renderMetric(mkey){
+      body.innerHTML = "";
+      const rows = topoData[mkey];
+      const values = [...new Set(rows.map(r=>r.v))].sort((a,b)=>a-b);
+      const vLabel = {}; rows.forEach(r=>{vLabel[r.v]=r.vl;});
+      const baselineVals = new Set(DATA.blocks[block].baseline_values);
+      const legend = h("div", {class:"legend"});
+      values.forEach((v) => legend.appendChild(h("span", {class:"legend-item"}, [
+        h("span", {class:"swatch line", style:`background:${seqColorFor(v, values, baselineVals)}`}),
+        h("span", {text: vLabel[v] + (baselineVals.has(v) ? " (reference)" : "")})
+      ])));
+      body.appendChild(legend);
+      const grid = h("div", {class:"multi-grid"});
+      REC_ORDER.filter(rc => rows.some(r=>r.rec===rc)).forEach(rc => {
+        const panel = h("div", {class:"chart-panel"});
+        panel.appendChild(h("h4", {text:rc}));
+        panel.appendChild(buildLinePanel(rows.filter(r=>r.rec===rc), {
+          digits:3, zeroLine:false, zeroFloor:true, baselineVals,
+          xFmt:(v)=>`kₐ=${v}`
+        }));
+        grid.appendChild(panel);
+      });
+      body.appendChild(grid);
+    }
+    metrics.forEach((m,i)=>{
+      const btn = h("button", {text:m.label, type:"button"});
+      if (i===0) btn.classList.add("active");
+      btn.addEventListener("click", ()=>{
+        tabs.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        renderMetric(m.key);
+      });
+      tabs.appendChild(btn);
+    });
+    head.appendChild(h("div", {class:"card-controls"}, [tabs]));
+    card.appendChild(head);
+    card.appendChild(body);
+    renderMetric(metrics[0].key);
+    container.appendChild(card);
+  }
+
+  // ================================================================
+  // Section: stability table
+  // ================================================================
+  function renderStability(container, block, topo){
+    const stab = DATA.blocks[block].stability[topo];
+    if (!stab) return;
+    const blockMeta = DATA.blocks[block];
+    const card = h("section", {class:"card"});
+    card.appendChild(h("div", {class:"card-head"}, [
+      h("div", {}, [
+        h("h3", {class:"card-title", text:`What changes vs. the ${blockMeta.label.toLowerCase()} reference (${blockMeta.baseline_values.join(", ")})`}),
+        h("p", {class:"card-sub", html:"Largest absolute change in mean G<sub>p</sub>/G<sub>a</sub>/C<sub>p</sub>/C<sub>a</sub> across the other tested values of this block, per recommender &mdash; written <code>DG</code>/<code>DC</code> (Latin D) to keep it unambiguous next to the paper's own &Delta;G/&Delta;C, which contrast a recommender against its reference strategy (RC/F), not a parameter value against its block reference. Hover a cell for the per-value breakdown."})
+      ])
+    ]));
+    const scroll = h("div", {class:"table-scroll"});
+    const table = h("table", {class:"stability"});
+    const thead = h("thead");
+    const headRow = h("tr");
+    headRow.appendChild(h("th", {text:"Recommender", style:"text-align:left;"}));
+    ["dGₚ","dGₐ","dCₚ","dCₐ"].forEach(t => headRow.appendChild(h("th", {text:t})));
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const tbody = h("tbody");
+    const lookup = {};
+    ["gini","coverage"].forEach(metric => {
+      (stab[metric]||[]).forEach(row => { lookup[`${metric}|${row.ent}|${row.rec}`] = row; });
+    });
+    REC_ORDER.forEach(rc => {
+      const tr = h("tr");
+      tr.appendChild(h("td", {class:"rec-cell", text:rc}));
+      [["gini","content"],["gini","creator"],["coverage","content"],["coverage","creator"]].forEach(([metric,ent]) => {
+        const row = lookup[`${metric}|${ent}|${rc}`];
+        const td = h("td", {class:"metric-cell"});
+        if (!row){ td.textContent = "–"; tr.appendChild(td); return; }
+        const statusVar = `--status-${row.status}`;
+        const washVar = `--status-${row.status}-wash`;
+        td.style.background = `var(${washVar})`;
+        td.innerHTML = `<span class="val" style="color:var(${statusVar})">±${fmt(row.max_abs_delta,3)}</span>`;
+        td.addEventListener("mouseenter", (ev) => {
+          const rect = table.getBoundingClientRect();
+          const deltaRows = Object.keys(row.deltas).map(v => ({
+            k: blockMeta.values.includes(Number(v)) ? `${blockMeta.label} = ${v}` : v,
+            v: fmtSigned(row.deltas[v], 3)
+          }));
+          showTooltip(ev.clientX, rect.top, `${rc} · ${metric} · ${ent}  (base ${fmt(row.baseline,3)})`, deltaRows);
+        });
+        td.addEventListener("mouseleave", hideTooltip);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    scroll.appendChild(table);
+    card.appendChild(scroll);
+    const key = h("div", {class:"stability-key"});
+    [["good","< 0.02 (stable)"],["warning","0.02–0.05"],["serious","0.05–0.10"],["critical","≥ 0.10 (material)"]].forEach(([status,label]) => {
+      key.appendChild(h("span", {}, [h("span", {class:"key-chip", style:`background:var(--status-${status})`}), h("span", {text:label})]));
+    });
+    card.appendChild(key);
+    container.appendChild(card);
+  }
+
+  // ================================================================
+  // top-level render
+  // ================================================================
+  function humanizeParamKey(k){
+    return k.replace(/_/g," ").replace(/\b\w/g, c=>c.toUpperCase());
+  }
+
+  function renderAll(){
+    const block = state.block, topo = state.topo;
+    const blockMeta = DATA.blocks[block];
+    if (!blockMeta.topologies[topo]) { state.topo = "BA"; }
+    const main = document.getElementById("main");
+    main.innerHTML = "";
+    renderStability(main, state.block, state.topo);
+    renderGiniCoverage(main, state.block, state.topo);
+    renderContrast(main, state.block, state.topo);
+    renderReinforcement(main, state.block, state.topo);
+    renderDegree(main, state.block, state.topo);
+
+    // fixed params line
+    const fp = blockMeta.fixed_parameters[0] || {};
+    const fpEl = document.getElementById("fixed-params");
+    fpEl.innerHTML = "Fixed while varying <strong>" + blockMeta.label + "</strong> (" + blockMeta.values.join(", ") + "; reference " + blockMeta.baseline_values.join(", ") + "): " +
+      Object.keys(fp).map(k => `<code>${humanizeParamKey(k)} = ${fp[k]}</code>`).join(" ");
+
+    // completeness badge
+    const comp = (blockMeta.completeness||{})[topo];
+    const wrap = document.getElementById("completeness-badge-wrap");
+    const badge = document.getElementById("completeness-badge");
+    const banner = document.getElementById("caveat-banner");
+    if (comp){
+      wrap.style.display = "flex";
+      let status = "good", text = `${comp.min_n}/${comp.expected_n} runs per cell`;
+      if (comp.min_n < comp.expected_n) status = comp.min_n <= 1 ? "critical" : "warning";
+      badge.className = "badge " + status;
+      badge.innerHTML = `<span class="dot"></span> ${text}`;
+      if (comp.n_below_expected > 0){
+        banner.style.display = "flex";
+        banner.innerHTML = `<span>&#9888;&#65039;</span><span><strong>Partial data.</strong> ${comp.n_below_expected} of ${comp.n_cells} cells in this block/topology have fewer than the planned ${comp.expected_n} runs (as low as ${comp.min_n}). Treat means below as provisional — error bars and the stability table will tighten once the remaining OFAT runs land.</span>`;
+      } else {
+        banner.style.display = "none";
+      }
+    } else {
+      wrap.style.display = "none";
+      banner.style.display = "none";
+    }
+  }
+
+  function buildTabs(){
+    const blockTabs = document.getElementById("block-tabs");
+    const labelFor = {visibility:"Visibility (τₗ)", feed:"Feed size (k)", duration:"Duration (D)", population:"Population (N)"};
+    BLOCKS.forEach(b => {
+      const btn = h("button", {text: labelFor[b]||b, type:"button", role:"tab"});
+      if (b === state.block) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        state.block = b;
+        blockTabs.querySelectorAll("button").forEach(x=>x.classList.remove("active"));
+        btn.classList.add("active");
+        renderAll();
+      });
+      blockTabs.appendChild(btn);
+    });
+    const topoTabs = document.getElementById("topo-tabs");
+    TOPOS.forEach(t => {
+      const btn = h("button", {text:t, type:"button", role:"tab"});
+      if (t === state.topo) btn.classList.add("active");
+      btn.addEventListener("click", () => {
+        state.topo = t;
+        topoTabs.querySelectorAll("button").forEach(x=>x.classList.remove("active"));
+        btn.classList.add("active");
+        renderAll();
+      });
+      topoTabs.appendChild(btn);
+    });
+  }
+
+  async function init(){
+    try{
+      DATA = await loadData();
+    } catch (err){
+      document.getElementById("main").innerHTML =
+        `<div class="card"><p class="card-sub">Could not load <code>data/dashboard_data.json</code>: ${String(err.message||err)}. `
+        + `If you opened this file directly, serve the folder over HTTP instead (e.g. <code>python -m http.server</code>) &mdash; `
+        + `browsers block <code>fetch()</code> of local files opened via <code>file://</code>.</p></div>`;
+      return;
+    }
+    BLOCKS = Object.keys(DATA.blocks);
+    if (!DATA.blocks[state.block]) state.block = BLOCKS[0];
+    buildTabs();
+    renderAll();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
