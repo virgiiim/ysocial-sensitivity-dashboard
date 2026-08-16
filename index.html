@@ -1039,11 +1039,18 @@
     if (!values.length) return el("svg", {class:"chart", viewBox:`0 0 ${W} ${H}`});
     const vLabel = {}; rows.forEach(r=>{vLabel[r.v]=r.vl;});
     const xPos = {}; values.forEach((v,i)=>{xPos[v]=i;});
-    let lo = Infinity, hi = -Infinity;
-    rows.forEach(r => { if (r.mean!=null){ lo=Math.min(lo,r.mean); hi=Math.max(hi,r.mean); } });
-    if (!isFinite(lo)) { lo = 0; hi = 1; }
-    const pad = (hi-lo)*0.15 || 0.05;
-    const yMin = Math.max(0, lo-pad), yMax = hi+pad;
+    // A shared, zero-anchored y-domain (passed by the caller, computed across
+    // every panel in the current tab) keeps a small network effect looking
+    // small and lets panels be compared to each other honestly. Falls back to
+    // an auto-fit range only if the caller didn't supply one.
+    let yMin = opts.yMin, yMax = opts.yMax;
+    if (yMin === undefined || yMax === undefined){
+      let lo = Infinity, hi = -Infinity;
+      rows.forEach(r => { if (r.mean!=null){ lo=Math.min(lo,r.mean); hi=Math.max(hi,r.mean); } });
+      if (!isFinite(lo)) { lo = 0; hi = 1; }
+      const pad = (hi-lo)*0.15 || 0.05;
+      yMin = Math.max(0, lo-pad); yMax = hi+pad;
+    }
     const x = linScale([0, Math.max(values.length-1,1)], [0, plotW]);
     const y = linScale([yMin, yMax], [plotH, 0]);
     const svg = el("svg", {class:"chart", viewBox:`0 0 ${W} ${H}`, role:"img"});
@@ -1128,6 +1135,19 @@
       body.appendChild(legend);
       ["content","creator"].forEach(ent => {
         body.appendChild(h("h4", {text: ent==="content" ? "Content" : "Creator", style:"margin:10px 0 8px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;"}));
+        // Shared, zero-anchored y-domain across every recommender panel in
+        // this entity's grid, so a small network effect reads as small and
+        // panels stay honestly comparable to each other (not each auto-fit
+        // to its own narrow range).
+        let sharedHi = 0;
+        REC_ORDER.forEach(rc => {
+          topologies.forEach(topo => {
+            (blockMeta.topologies[topo][mkey] || [])
+              .filter(r=>r.rec===rc && r.ent===ent && r.mean!=null)
+              .forEach(r => { sharedHi = Math.max(sharedHi, r.mean); });
+          });
+        });
+        const sharedYMax = niceMax(sharedHi * 1.1, 0.1);
         const grid = h("div", {class:"multi-grid"});
         REC_ORDER.forEach(rc => {
           const rows = [];
@@ -1138,7 +1158,7 @@
           if (!rows.length) return;
           const panel = h("div", {class:"chart-panel"});
           panel.appendChild(h("h4", {text:rc}));
-          panel.appendChild(buildTopologyPanel(rows, {digits}));
+          panel.appendChild(buildTopologyPanel(rows, {digits, yMin:0, yMax:sharedYMax}));
           grid.appendChild(panel);
         });
         body.appendChild(grid);
