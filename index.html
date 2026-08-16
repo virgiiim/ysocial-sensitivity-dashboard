@@ -16,6 +16,7 @@
     --rec-RC:#000000; --rec-P:#e7298a; --rec-UCF:#00936D; --rec-ICF:#1b9e77; --rec-F:#d95f02; --rec-FP:#7570b3; --rec-LR:#549C29;
     --seq-ref:#4a4a4a; --seq-low:#6da7ec; --seq-high:#184f95;
     --heat-0:#f2f6fc; --heat-1:#0d366b;
+    --topo-ba:#4a4a4a; --topo-er:#2a78d6; --topo-pc:#d03b3b;
     color-scheme:light;
   }
   @media (prefers-color-scheme: dark){
@@ -30,6 +31,7 @@
       --rec-RC:#e8e8e6; --rec-P:#e7298a; --rec-UCF:#00936D; --rec-ICF:#1b9e77; --rec-F:#d95f02; --rec-FP:#7570b3; --rec-LR:#549C29;
       --seq-ref:#a8a8a3; --seq-low:#86b6ef; --seq-high:#3987e5;
       --heat-0:#182430; --heat-1:#5aa6f2;
+      --topo-ba:#a8a8a3; --topo-er:#3987e5; --topo-pc:#e66767;
       color-scheme:dark;
     }
   }
@@ -44,6 +46,7 @@
     --rec-RC:#e8e8e6; --rec-P:#e7298a; --rec-UCF:#00936D; --rec-ICF:#1b9e77; --rec-F:#d95f02; --rec-FP:#7570b3; --rec-LR:#549C29;
     --seq-ref:#a8a8a3; --seq-low:#86b6ef; --seq-high:#3987e5;
     --heat-0:#182430; --heat-1:#5aa6f2;
+    --topo-ba:#a8a8a3; --topo-er:#3987e5; --topo-pc:#e66767;
     color-scheme:dark;
   }
 
@@ -1023,6 +1026,229 @@
   }
 
   // ================================================================
+  // Section: network topology, all three at once (independent of the
+  // topology tab -- BA/ER/PC are always compared together here)
+  // ================================================================
+  function topologyColor(topo){ return cssVar(`--topo-${topo.toLowerCase()}`); }
+
+  function buildTopologyPanel(rows, opts){
+    // rows: [{topo, v, vl, mean}] for one recommender/entity/metric, across topologies and OFAT values.
+    const W = 300, H = 190, M = {top:10, right:10, bottom:26, left:34};
+    const plotW = W - M.left - M.right, plotH = H - M.top - M.bottom;
+    const values = [...new Set(rows.map(r=>r.v))].sort((a,b)=>a-b);
+    if (!values.length) return el("svg", {class:"chart", viewBox:`0 0 ${W} ${H}`});
+    const vLabel = {}; rows.forEach(r=>{vLabel[r.v]=r.vl;});
+    const xPos = {}; values.forEach((v,i)=>{xPos[v]=i;});
+    let lo = Infinity, hi = -Infinity;
+    rows.forEach(r => { if (r.mean!=null){ lo=Math.min(lo,r.mean); hi=Math.max(hi,r.mean); } });
+    if (!isFinite(lo)) { lo = 0; hi = 1; }
+    const pad = (hi-lo)*0.15 || 0.05;
+    const yMin = Math.max(0, lo-pad), yMax = hi+pad;
+    const x = linScale([0, Math.max(values.length-1,1)], [0, plotW]);
+    const y = linScale([yMin, yMax], [plotH, 0]);
+    const svg = el("svg", {class:"chart", viewBox:`0 0 ${W} ${H}`, role:"img"});
+    const plot = el("g", {transform:`translate(${M.left},${M.top})`}, svg);
+    const yTicks = 3;
+    for (let i=0;i<=yTicks;i++){
+      const val = yMin + (yMax-yMin)*i/yTicks;
+      const yy = y(val);
+      el("line", {class:"grid-line", x1:0, x2:plotW, y1:yy, y2:yy}, plot);
+      el("text", {x:-5, y:yy+3, "text-anchor":"end"}, plot).textContent = fmt(val, opts.digits||2);
+    }
+    el("line", {class:"axis-line", x1:0, x2:0, y1:0, y2:plotH}, plot);
+    el("line", {class:"axis-line", x1:0, x2:plotW, y1:plotH, y2:plotH}, plot);
+    values.forEach(v => {
+      el("text", {x:x(xPos[v]), y:plotH+14, "text-anchor":"middle"}, plot).textContent = vLabel[v];
+    });
+
+    const seriesData = ["BA","ER","PC"].map(topo => {
+      const pts = values
+        .map(v => ({v, x: xPos[v], row: rows.find(r=>r.topo===topo && r.v===v)}))
+        .filter(p => p.row)
+        .map(p => ({v:p.v, x:p.x, mean:p.row.mean}));
+      return {topo, color: topologyColor(topo), pts};
+    }).filter(s => s.pts.length);
+    seriesData.forEach(s => {
+      if (s.pts.length < 2) return;
+      const d = s.pts.map((p,i) => `${i===0?"M":"L"}${x(p.x)},${y(p.mean)}`).join(" ");
+      el("path", {class:"line-path", d, stroke:s.color, "stroke-dasharray": s.topo==="BA" ? "4 2.5" : "none"}, plot);
+    });
+
+    const hoverGroup = el("g", {}, plot);
+    const crosshair = el("line", {class:"crosshair", y1:0, y2:plotH}, hoverGroup);
+    const dots = seriesData.map(s => el("circle", {class:"hover-dot", r:2.6, fill:s.color, opacity:0}, hoverGroup));
+    const capture = el("rect", {x:0, y:0, width:plotW, height:plotH, fill:"transparent"}, plot);
+    capture.addEventListener("mousemove", (ev) => {
+      const rect = svg.getBoundingClientRect();
+      const scaleX = rect.width / W;
+      const mx = (ev.clientX - rect.left)/scaleX - M.left;
+      let nearestIdx = 0, best = Infinity;
+      values.forEach((v,i) => { const d = Math.abs(x(i)-mx); if (d<best){best=d; nearestIdx=i;} });
+      const nearestV = values[nearestIdx];
+      crosshair.setAttribute("x1", x(nearestIdx)); crosshair.setAttribute("x2", x(nearestIdx));
+      crosshair.style.opacity = 1;
+      const rows_tt = [];
+      seriesData.forEach((s, i) => {
+        const pt = s.pts.find(p=>p.v===nearestV);
+        if (pt){
+          dots[i].setAttribute("cx", x(pt.x)); dots[i].setAttribute("cy", y(pt.mean)); dots[i].style.opacity = 1;
+          rows_tt.push({k: s.topo, v: fmt(pt.mean, opts.digits||3), color: s.color});
+        } else { dots[i].style.opacity = 0; }
+      });
+      showTooltip(ev.clientX, rect.top, vLabel[nearestV], rows_tt);
+    });
+    capture.addEventListener("mouseleave", () => { crosshair.style.opacity = 0; dots.forEach(d=>d.style.opacity=0); hideTooltip(); });
+    return svg;
+  }
+
+  function renderTopologyOverlay(container, block){
+    const blockMeta = DATA.blocks[block];
+    const topologies = Object.keys(blockMeta.topologies);
+    if (topologies.length < 2) return;
+    const card = h("section", {class:"card"});
+    const head = h("div", {class:"card-head"}, [
+      h("div", {}, [
+        h("h3", {class:"card-title", text:"Does the network topology change the story?"}),
+        h("p", {class:"card-sub", html:"Same metric, same recommenders, BA / ER / PC always shown together — tests the paper's own claim that topology modulates magnitude without changing the qualitative ordering. Independent of the topology tab above."})
+      ])
+    ]);
+    const tabs = h("div", {class:"tabbar"});
+    const body = h("div", {});
+    const metrics = [
+      {key:"absolute_gini", label:"Gini", digits:3},
+      {key:"absolute_coverage", label:"Coverage", digits:2}
+    ];
+    function renderMetric(mkey, digits){
+      body.innerHTML = "";
+      const legend = h("div", {class:"legend"});
+      ["BA","ER","PC"].filter(t=>topologies.includes(t)).forEach(t => legend.appendChild(h("span", {class:"legend-item"}, [
+        h("span", {class:"swatch line", style:`background:${topologyColor(t)}`}),
+        h("span", {text: t + (t==="BA" ? " (reference)" : "")})
+      ])));
+      body.appendChild(legend);
+      ["content","creator"].forEach(ent => {
+        body.appendChild(h("h4", {text: ent==="content" ? "Content" : "Creator", style:"margin:10px 0 8px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;"}));
+        const grid = h("div", {class:"multi-grid"});
+        REC_ORDER.forEach(rc => {
+          const rows = [];
+          topologies.forEach(topo => {
+            const tRows = blockMeta.topologies[topo][mkey] || [];
+            tRows.filter(r=>r.rec===rc && r.ent===ent).forEach(r => rows.push({topo, v:r.v, vl:r.vl, mean:r.mean}));
+          });
+          if (!rows.length) return;
+          const panel = h("div", {class:"chart-panel"});
+          panel.appendChild(h("h4", {text:rc}));
+          panel.appendChild(buildTopologyPanel(rows, {digits}));
+          grid.appendChild(panel);
+        });
+        body.appendChild(grid);
+      });
+    }
+    metrics.forEach((m,i)=>{
+      const btn = h("button", {text:m.label, type:"button"});
+      if (i===0) btn.classList.add("active");
+      btn.addEventListener("click", ()=>{
+        tabs.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        renderMetric(m.key, m.digits);
+      });
+      tabs.appendChild(btn);
+    });
+    head.appendChild(h("div", {class:"card-controls"}, [tabs]));
+    card.appendChild(head);
+    card.appendChild(body);
+    renderMetric(metrics[0].key, metrics[0].digits);
+    container.appendChild(card);
+  }
+
+  function renderTopologyContrast(container, block){
+    const blockMeta = DATA.blocks[block];
+    const topologies = Object.keys(blockMeta.topologies);
+    if (!topologies.includes("BA") || topologies.length < 2) return;
+    const baseline = blockMeta.baseline_values[0];
+    const card = h("section", {class:"card"});
+    card.appendChild(h("div", {class:"card-head"}, [
+      h("div", {}, [
+        h("h3", {class:"card-title", text:`How much the network itself changes things (at the ${blockMeta.label.toLowerCase()} reference)`}),
+        h("p", {class:"card-sub", html:"Largest absolute difference between BA and the other topologies in mean G<sub>p</sub>/G<sub>a</sub>/C<sub>p</sub>/C<sub>a</sub>, at this block's reference value, per recommender. Same shading convention as “What changes” above — relative to the largest shift shown here, not a fixed cutoff. Hover a cell for the BA/ER/PC breakdown."})
+      ])
+    ]));
+    function valueAt(topo, mkey, ent, rc){
+      const rows = (blockMeta.topologies[topo]||{})[mkey] || [];
+      const row = rows.find(r=>r.rec===rc && r.ent===ent && r.v===baseline);
+      return row ? row.mean : null;
+    }
+    const scroll = h("div", {class:"table-scroll"});
+    const table = h("table", {class:"stability"});
+    const thead = h("thead");
+    const headRow = h("tr");
+    headRow.appendChild(h("th", {text:"Recommender", style:"text-align:left;"}));
+    ["Gₚ","Gₐ","Cₚ","Cₐ"].forEach(t => headRow.appendChild(h("th", {text:t})));
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+    const tbody = h("tbody");
+    const cellSpecs = [["absolute_gini","content"],["absolute_gini","creator"],["absolute_coverage","content"],["absolute_coverage","creator"]];
+    const cellData = {};
+    let localMax = 0;
+    REC_ORDER.forEach(rc => {
+      cellSpecs.forEach(([mkey, ent]) => {
+        const baVal = valueAt("BA", mkey, ent, rc);
+        if (baVal === null) return;
+        const others = {};
+        topologies.filter(t=>t!=="BA").forEach(t => {
+          const v = valueAt(t, mkey, ent, rc);
+          if (v !== null) others[t] = v - baVal;
+        });
+        const diffs = Object.values(others).map(Math.abs);
+        if (!diffs.length) return;
+        const maxAbs = Math.max(...diffs);
+        cellData[`${rc}|${mkey}|${ent}`] = {baVal, others, maxAbs};
+        localMax = Math.max(localMax, maxAbs);
+      });
+    });
+    const endpoints = heatEndpoints();
+    REC_ORDER.forEach(rc => {
+      const tr = h("tr");
+      tr.appendChild(h("td", {class:"rec-cell", text:rc}));
+      cellSpecs.forEach(([mkey, ent]) => {
+        const data = cellData[`${rc}|${mkey}|${ent}`];
+        const td = h("td", {class:"metric-cell"});
+        if (!data){ td.textContent = "–"; tr.appendChild(td); return; }
+        const t = localMax > 0 ? data.maxAbs / localMax : 0;
+        const { bg, text } = heatColor(t, endpoints);
+        td.style.background = bg;
+        td.innerHTML = `<span class="val" style="color:${text}">±${fmt(data.maxAbs,3)}</span>`;
+        td.addEventListener("mouseenter", (ev) => {
+          const rect = table.getBoundingClientRect();
+          const rows_tt = [{k:"BA", v: fmt(data.baVal,3), color: topologyColor("BA")}];
+          Object.keys(data.others).forEach(t2 => {
+            rows_tt.push({k:t2, v: `${fmt(data.baVal + data.others[t2],3)} (${fmtSigned(data.others[t2],3)})`, color: topologyColor(t2)});
+          });
+          showTooltip(ev.clientX, rect.top, `${rc} · ${mkey==="absolute_gini"?"Gini":"Coverage"} · ${ent}`, rows_tt);
+        });
+        td.addEventListener("mouseleave", hideTooltip);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    scroll.appendChild(table);
+    card.appendChild(scroll);
+    const key = h("div", {class:"stability-key"});
+    const barStops = 12;
+    const bar = h("div", {class:"heat-bar"});
+    for (let i=0;i<barStops;i++){
+      const { bg } = heatColor(i/(barStops-1), endpoints);
+      bar.appendChild(h("span", {style:`background:${bg};`}));
+    }
+    key.appendChild(h("span", {text:"smaller network effect"}));
+    key.appendChild(bar);
+    key.appendChild(h("span", {text:"larger network effect (within this table)"}));
+    card.appendChild(key);
+    container.appendChild(card);
+  }
+
+  // ================================================================
   // Section: stability table
   // ================================================================
   function renderStability(container, block, topo){
@@ -1108,6 +1334,8 @@
     if (!blockMeta.topologies[topo]) { state.topo = "BA"; }
     const main = document.getElementById("main");
     main.innerHTML = "";
+    renderTopologyOverlay(main, state.block);
+    renderTopologyContrast(main, state.block);
     renderStability(main, state.block, state.topo);
     renderDistributionShift(main, state.block, state.topo);
     renderGiniCoverage(main, state.block, state.topo);
