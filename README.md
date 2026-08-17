@@ -21,17 +21,6 @@ enable Pages on that repo instead.
   established convention for what counts as a material Gini/coverage shift,
   so the dashboard deliberately doesn't assert one; that judgment belongs in
   the paper text).
-- **Distribution shift (Jensen–Shannon)** — JS distance (bounded 0–1)
-  between each tested value's recommendation-volume distribution and the
-  block's reference distribution, comparing the whole shape rather than one
-  summary number. Each distribution is rescaled by its own mean before the
-  comparison, so a value that only changes how many recommendations are
-  handed out in total (larger N, longer τₗ, more feed slots) is not by
-  itself counted as a shape change — the same scale-invariance already
-  built into Gini, applied here so the two are directly comparable. Because
-  it's bounded, shading uses a fixed 0–1 scale and *is* comparable across
-  blocks/topologies (the stability table above is not). Each value's own
-  mean recommendation volume is in the hover tooltip for transparency.
 - **Concentration & coverage** — entity-first grouped bars (Gₚ/Gₐ/Cₚ/Cₐ) by
   sensitivity value, mean ± sample SD.
 - **Recommendation-volume distribution (φ)** — log–log PMF of recommendation
@@ -109,8 +98,7 @@ Settings → Pages → **Source: Deploy from a branch** → **Branch: `main`**,
 
 ## Known limitations
 
-- ICF shows "–" everywhere, including the JSD table, because the
-  `website_data/` exports this dashboard reads from don't currently include
-  an ICF OFAT run of their own. If ICF sensitivity runs are ever added to
-  that export, no dashboard change is needed — the data refresh picks them
-  up automatically.
+- ICF shows "–" everywhere because the `website_data/` exports this
+  dashboard reads from don't currently include an ICF OFAT run of their
+  own. If ICF sensitivity runs are ever added to that export, no dashboard
+  change is needed — the data refresh picks them up automatically.

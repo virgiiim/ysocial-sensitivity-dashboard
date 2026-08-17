@@ -864,73 +864,10 @@
     renderMetric(metrics[0].entity);
   }
 
-  // ================================================================
-  // distribution-shift table (Jensen-Shannon distance to baseline)
-  // ================================================================
-  function renderDistributionShift(container, block, topo){
-    const jsd = (DATA.blocks[block].stability[topo]||{}).jsd;
-    if (!jsd || !jsd.length) return;
-    const blockMeta = DATA.blocks[block];
-    const card = h("section", {class:"card"});
-    card.appendChild(h("div", {class:"card-head"}, [
-      h("div", {}, [
-        h("h3", {class:"card-title", html:"How much the distribution shape itself moves (Jensen&ndash;Shannon)"}),
-        h("p", {class:"card-sub", html:"Jensen&ndash;Shannon distance (bounded 0&ndash;1) between each tested value's recommendation-volume distribution and the block's reference-value distribution &mdash; unlike G/C above, this compares the whole shape, not one summary number. Each distribution is rescaled by its own mean before comparing, so a value that simply changes how many recommendations are handed out in total (larger N, longer &tau;<sub>&#8467;</sub>, more feed slots) isn't counted as a shape change by itself &mdash; same reasoning as why Gini is scale-invariant. Bounded, so shading uses a fixed 0&ndash;1 scale and <em>is</em> comparable across blocks and topologies (the G/C table above is not). Hover a cell for the per-value breakdown and each value's own mean recommendation volume."})
-      ])
-    ]));
-    const scroll = h("div", {class:"table-scroll"});
-    const table = h("table", {class:"stability"});
-    const thead = h("thead");
-    const headRow = h("tr");
-    headRow.appendChild(h("th", {text:"Recommender", style:"text-align:left;"}));
-    ["JSDₚ","JSDₐ"].forEach(t => headRow.appendChild(h("th", {text:t})));
-    thead.appendChild(headRow);
-    table.appendChild(thead);
-    const tbody = h("tbody");
-    const lookup = {};
-    jsd.forEach(row => { lookup[`${row.ent}|${row.rec}`] = row; });
-    const endpoints = heatEndpoints();
-    REC_ORDER.forEach(rc => {
-      const tr = h("tr");
-      tr.appendChild(h("td", {class:"rec-cell", text:rc}));
-      ["content","creator"].forEach((ent) => {
-        const row = lookup[`${ent}|${rc}`];
-        const td = h("td", {class:"metric-cell"});
-        if (!row){ td.textContent = "–"; tr.appendChild(td); return; }
-        const { bg, text } = heatColor(row.max_js, endpoints); // fixed 0..1 scale, not locally normalized
-        td.style.background = bg;
-        td.innerHTML = `<span class="val" style="color:${text}">${fmt(row.max_js,3)}</span>`;
-        td.addEventListener("mouseenter", (ev) => {
-          const rect = table.getBoundingClientRect();
-          const refMean = row.means[blockMeta.baseline_values[0]];
-          const deltaRows = Object.keys(row.js).map(v => {
-            const mean = row.means[v];
-            const meanNote = (mean!==undefined && refMean!==undefined) ? ` (mean r: ${fmt(mean,0)} vs ref ${fmt(refMean,0)})` : "";
-            return { k: `${blockMeta.label} = ${v}`, v: `${fmt(row.js[v],3)}${meanNote}` };
-          });
-          showTooltip(ev.clientX, rect.top, `${rc} · ${ent}`, deltaRows);
-        });
-        td.addEventListener("mouseleave", hideTooltip);
-        tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    scroll.appendChild(table);
-    card.appendChild(scroll);
-    const key = h("div", {class:"stability-key"});
-    const barStops = 12;
-    const bar = h("div", {class:"heat-bar"});
-    for (let i=0;i<barStops;i++){
-      const { bg } = heatColor(i/(barStops-1), endpoints);
-      bar.appendChild(h("span", {style:`background:${bg};`}));
-    }
-    key.appendChild(h("span", {text:"identical shape (0)"}));
-    key.appendChild(bar);
-    key.appendChild(h("span", {text:"maximally different shape (1)"}));
-    card.appendChild(key);
-    container.appendChild(card);
-  }
+  // The Jensen-Shannon distribution-shift table was removed here (kept only
+  // in git history) -- the underlying scale-normalized computation is still
+  // available server-side in build_sensitivity_dashboard.py
+  // (normalized_jsd / jsd_rows_from_pmf) if it's reinstated later.
 
   function renderReinforcement(container, block, topo){
     const topoData = DATA.blocks[block].topologies[topo];
@@ -1356,7 +1293,6 @@
     renderTopologyOverlay(main, state.block);
     renderTopologyContrast(main, state.block);
     renderStability(main, state.block, state.topo);
-    renderDistributionShift(main, state.block, state.topo);
     renderGiniCoverage(main, state.block, state.topo);
     renderDistributions(main, state.block, state.topo);
     renderContrast(main, state.block, state.topo);
