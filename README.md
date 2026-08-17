@@ -21,21 +21,23 @@ enable Pages on that repo instead.
   established convention for what counts as a material Gini/coverage shift,
   so the dashboard deliberately doesn't assert one; that judgment belongs in
   the paper text).
-- **Distribution shift (Jensen–Shannon)** — JS distance (base 2, bounded
-  0–1) between each tested value's recommendation-volume distribution and
-  the block's reference distribution. Unlike Gini/coverage, this compares
-  the whole shape, not one summary number — and because it's bounded, the
-  shading here (unlike the stability table above) uses a fixed 0–1 scale
-  and *is* comparable across blocks/topologies. Raw Wasserstein distance is
-  in the hover tooltip for context only (not normalized, not comparable
-  across blocks).
+- **Distribution shift (Jensen–Shannon)** — JS distance (bounded 0–1)
+  between each tested value's recommendation-volume distribution and the
+  block's reference distribution, comparing the whole shape rather than one
+  summary number. Each distribution is rescaled by its own mean before the
+  comparison, so a value that only changes how many recommendations are
+  handed out in total (larger N, longer τₗ, more feed slots) is not by
+  itself counted as a shape change — the same scale-invariance already
+  built into Gini, applied here so the two are directly comparable. Because
+  it's bounded, shading uses a fixed 0–1 scale and *is* comparable across
+  blocks/topologies (the stability table above is not). Each value's own
+  mean recommendation volume is in the hover tooltip for transparency.
 - **Concentration & coverage** — entity-first grouped bars (Gₚ/Gₐ/Cₚ/Cₐ) by
   sensitivity value, mean ± sample SD.
 - **Recommendation-volume distribution (φ)** — log–log PMF of recommendation
-  volume conditional on r>0, same statistic as the paper's Figure 1.
-  Log-binned (~40 bins per recommender) from the full per-value PMF for
-  display; the un-binned data and the JSD/Wasserstein numbers above both
-  come from `sensitivity_export_metrics.py`.
+  volume conditional on r>0, same statistic as the paper's Figure 1, full
+  resolution (no binning): run-level distributions aligned on their
+  combined support, zero-filled, averaged with equal run weight.
 - **Recommender contrast (ΔG, ΔC)** — the same contrast the paper's results
   text already reports (P/UCF vs RC, FP/LR vs F), across sensitivity values.
 - **Popularity → future-exposure association (ρ)** — the paper's
@@ -107,13 +109,8 @@ Settings → Pages → **Source: Deploy from a branch** → **Branch: `main`**,
 
 ## Known limitations
 
-- ICF has JSD/Wasserstein numbers (from `sensitivity_export_metrics.py`,
-  which covers all 7 recommenders) but shows "–" in the Gini/coverage,
-  contrast, reinforcement, and degree sections, which read from
-  `website_data/` exports that don't currently include an ICF OFAT run of
-  their own. If ICF sensitivity runs are ever added to that export, no
-  dashboard change is needed — the data refresh picks them up automatically.
-- The recommendation-volume plots are log-binned for display (~40 bins per
-  recommender); the full-resolution per-support PMF is in
-  `data_sensitivity/<block>/website_data/recommendation_volume_*` if finer
-  detail is ever needed.
+- ICF shows "–" everywhere, including the JSD table, because the
+  `website_data/` exports this dashboard reads from don't currently include
+  an ICF OFAT run of their own. If ICF sensitivity runs are ever added to
+  that export, no dashboard change is needed — the data refresh picks them
+  up automatically.
