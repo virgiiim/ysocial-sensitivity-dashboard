@@ -1,18 +1,8 @@
 # Sensitivity dashboard
 
-Static, interactive OFAT (one-factor-at-a-time) sensitivity dashboard for the
-YSocial recommender-visibility paper, meant to be linked as a citable,
-always-current companion to the main-text sensitivity summary and the
-appendix tables.
-
-**This is a temporary standalone public repo.** The dashboard's real home is
-`icwsm-recsys-visibility` (private, source of truth for the analysis code and
-data), under `docs/sensitivity/`. It's mirrored here only because that repo's
-GitHub plan doesn't support Pages on a private repository. Once the paper is
-out of any blind-review period, fold this back in: copy `index.html` and
-`data/dashboard_data.json` from here into `docs/sensitivity/` there (same
-filenames, same relative layout — it's a straight copy, nothing to adapt) and
-enable Pages on that repo instead.
+Static, interactive OFAT (one-factor-at-a-time) sensitivity dashboard, meant
+to be linked from the paper as a citable, always-current companion to the
+main-text sensitivity summary and the appendix tables.
 
 - **Stability overview** — largest absolute change in mean Gₚ/Gₐ/Cₚ/Cₐ
   (Gini/coverage, content/creator) versus each block's own reference value,
@@ -47,9 +37,10 @@ comparison from the paper's `ΔG`/`ΔC` (a recommender versus its reference
 ## Files
 
 ```text
-index.html             the page — logic + styling, ~60 KB, no external requests
-data/
-  dashboard_data.json   generated data bundle, fetched at runtime (~3 MB)
+docs/sensitivity/
+  index.html            the page — logic + styling, ~46 KB, no external requests
+  data/
+    dashboard_data.json generated data bundle, fetched at runtime (~2 MB)
 ```
 
 `index.html` fetches `data/dashboard_data.json` at load time. Refreshing the
@@ -58,27 +49,21 @@ just because new runs landed.
 
 ## Refreshing after new OFAT runs
 
-Regenerate in the main (private) repo, pointing the build script's output at
-this checkout, then commit and push here:
-
 ```bash
-# from the icwsm-recsys-visibility checkout
 conda activate ysocial-analysis
-python scripts/ysocial_recsys_reviews/build_sensitivity_dashboard.py \
-  --output /path/to/ysocial-sensitivity-dashboard/data/dashboard_data.json
-
-# from this repo's checkout
-git add data/dashboard_data.json
+python scripts/ysocial_recsys_reviews/build_sensitivity_dashboard.py
+git add docs/sensitivity/data/dashboard_data.json
 git commit -m "Refresh sensitivity dashboard data"
 git push
 ```
 
 GitHub Pages redeploys automatically within a minute or two of the push. The
 build script reads `data_sensitivity/*/website_data/` (the same tables the
-`*_data_exploration.ipynb` notebooks already export in the main repo), so any
-block/topology still short of the planned 4 runs per cell is simply
-reflected as-is — the page's "Data status" badge and the caveat banner
-already surface that.
+`*_data_exploration.ipynb` notebooks already export), so any block/topology
+still short of the planned 4 runs per cell is simply reflected as-is — the
+page's "Data status" badge and the caveat banner already surface that
+(compare against `outputs/validation/validation_report.md` if a number looks
+stale after a big batch of new runs completes).
 
 ## Viewing locally
 
@@ -86,19 +71,28 @@ already surface that.
 the folder over HTTP instead:
 
 ```bash
+cd docs
 python -m http.server 8000
-# open http://127.0.0.1:8000/
+# open http://127.0.0.1:8000/sensitivity/
 ```
 
-## Enabling GitHub Pages (one-time)
+## Enabling GitHub Pages (one-time, by a repo admin)
 
 Settings → Pages → **Source: Deploy from a branch** → **Branch: `main`**,
-**Folder: `/ (root)`** → Save. The site publishes at
-`https://virgiiim.github.io/ysocial-sensitivity-dashboard/`.
+**Folder: `/docs`** → Save. The site publishes at
+`https://virgiiim.github.io/icwsm-recsys-visibility/sensitivity/`.
+
+This requires the repository to be public (or a GitHub plan that allows
+Pages on a private repository — Pro/Team/Enterprise). Since the intent is a
+citable, paper-linkable URL, this is presumably fine post-review, but if the
+paper is still under a blind-review period, double-check the venue's policy
+on linking a de-anonymizing GitHub Pages URL from the manuscript before
+making the repository public.
 
 ## Known limitations
 
 - ICF shows "–" everywhere because the `website_data/` exports this
   dashboard reads from don't currently include an ICF OFAT run of their
   own. If ICF sensitivity runs are ever added to that export, no dashboard
-  change is needed — the data refresh picks them up automatically.
+  change is needed — the data refresh picks them
+  up automatically.

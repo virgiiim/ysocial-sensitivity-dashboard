@@ -149,6 +149,12 @@
   .crosshair{stroke:var(--text-muted); stroke-width:1; stroke-dasharray:2 2; opacity:0;}
 
   .multi-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(280px,1fr)); gap:14px;}
+  .network-gallery{display:grid; grid-template-columns:repeat(auto-fit, minmax(220px,1fr)); gap:14px; margin-top:2px;}
+  .network-item{margin:0; background:#ffffff; border:1px solid var(--border); border-radius:10px; padding:8px 8px 10px; display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .network-item img{width:100%; height:auto; border-radius:6px; display:block; background:#ffffff;}
+  .network-item figcaption{font-size:12px; color:var(--text-secondary); text-align:center;}
+  .network-item.missing{background:var(--surface-sunken);}
+  .network-missing{width:100%; aspect-ratio:10/7; display:flex; align-items:center; justify-content:center; background:var(--surface-sunken); border-radius:6px; color:var(--text-muted); font-size:12px; text-align:center; padding:10px;}
 
   /* ---------- tooltip ---------- */
   #tooltip{
@@ -1207,6 +1213,50 @@
   // ================================================================
   // Section: stability table
   // ================================================================
+  function networkValueLabel(block, topo, value){
+    const topoData = (DATA.blocks[block]||{}).topologies[topo] || {};
+    for (const key of Object.keys(topoData)){
+      const rows = topoData[key];
+      if (Array.isArray(rows)){
+        const hit = rows.find(r => r.v === value);
+        if (hit && hit.vl) return hit.vl;
+      }
+    }
+    return String(value);
+  }
+
+  function renderNetworkView(container, block, topo){
+    const blockMeta = DATA.blocks[block];
+    if (!blockMeta || !blockMeta.topologies[topo]) return;
+    const values = blockMeta.values;
+    const baselineVals = new Set(blockMeta.baseline_values);
+    const card = h("section", {class:"card"});
+    card.appendChild(h("div", {class:"card-head"}, [
+      h("div", {}, [
+        h("h3", {class:"card-title", text:"Network view"}),
+        h("p", {class:"card-sub", html:"Same construction as the paper&rsquo;s Figure&nbsp;3 grid &mdash; six feeds (RC, P, UCF, F, FP, LR), node size = degree, node color = normalized recommendation-exposure visibility, top-300 degree-or-visibility node filter, spring layout with collision relaxation &mdash; recomputed for every OFAT value of this block under the " + topo + " topology (run 0; truncated to the first 720 rounds / 30 days, except for the duration block itself, whose round count is the varied parameter)."})
+      ])
+    ]));
+    const gallery = h("div", {class:"network-gallery"});
+    values.forEach(v => {
+      const label = networkValueLabel(block, topo, v) + (baselineVals.has(v) ? " (reference)" : "");
+      const src = `data/network/${block}/${block}_${topo}_${v}.png`;
+      const figure = h("figure", {class:"network-item"});
+      const img = h("img", {src, alt:`${topo} network grid, ${block} = ${v}`, loading:"lazy"});
+      img.addEventListener("error", () => {
+        figure.classList.add("missing");
+        figure.innerHTML = "";
+        figure.appendChild(h("div", {class:"network-missing", text:"Not generated for this cell"}));
+        figure.appendChild(h("figcaption", {text:label}));
+      }, {once:true});
+      figure.appendChild(img);
+      figure.appendChild(h("figcaption", {text:label}));
+      gallery.appendChild(figure);
+    });
+    card.appendChild(gallery);
+    container.appendChild(card);
+  }
+
   function renderStability(container, block, topo){
     const stab = DATA.blocks[block].stability[topo];
     if (!stab) return;
@@ -1292,6 +1342,7 @@
     main.innerHTML = "";
     renderTopologyOverlay(main, state.block);
     renderTopologyContrast(main, state.block);
+    renderNetworkView(main, state.block, state.topo);
     renderStability(main, state.block, state.topo);
     renderGiniCoverage(main, state.block, state.topo);
     renderDistributions(main, state.block, state.topo);
